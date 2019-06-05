@@ -5,3 +5,4 @@ get_combatant1a_info.py,get_participants1_info.py,get_participants2_info.py,get_
 info_participants_aggregate.py is the code file for aggregating all the participants informations into one dataset.
 get_commander1_info.py,get_commander2_info.py,get_commander3_info.py,get_commander4_info.py are the codes for getting commanders of each side from infoboxes.
 info_commanders_aggregate.py is the code file for aggregating all the commander informations into one dataset.
+get_time.py, get_location.py and get_partof.py are the files to get time dataset, location dataset and partof dataset respectively. Note the dataset got from get_partof.py is not in the form which Arash suggested.
