@@ -16,11 +16,11 @@ import calendar
 from os import mkdir
 
 main_path = "D:/learning/Arash/war_participants/articles/infobox/"
-pariticipants_path=main_path+'output/war_participant_infobox.csv'
-commanders_path=main_path+'output/war_commander_infobox.csv'
-time_path=main_path+'output/info_time.csv'
-location_path=main_path+'output/location_infobox.csv'
-partof_path=main_path+'output/partof_infobox_iteration.csv'
+pariticipants_path=main_path+'output/wikiWAR_participant_infobox.csv'
+commanders_path=main_path+'output/wikiWAR_commander_infobox.csv'
+time_path=main_path+'output/wikiWAR_info_time.csv'
+location_path=main_path+'output/wikiWAR_location_infobox.csv'
+partof_path=main_path+'output/wikiWAR_partof_infobox_iteration.csv'
 
 try:
     mkdir(main_path)
