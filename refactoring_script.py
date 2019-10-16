@@ -3,6 +3,7 @@
 Title: WAR
 Aim:This script is for getting the information of conflicts and revolutions in the human history from wikipedia, including the participants
 ,commanders, time and locations.
+For catching the infoboxes from wikipedia articles, using gather_infoboxes_new.py instead.
 @author: leo
 """
 import numpy as np
@@ -21,7 +22,7 @@ commanders_path=main_path+'output/wikiWAR_commander_infobox.csv'
 time_path=main_path+'output/wikiWAR_info_time.csv'
 location_path=main_path+'output/wikiWAR_location_infobox.csv'
 partof_path=main_path+'output/wikiWAR_partof_infobox_iteration.csv'
-
+qid_subject_path='D:/learning/Arash/war_participants/Fabian_06292019_WAR/Data/A1_00_qidSubject.dta'
 try:
     mkdir(main_path)
 except FileExistsError:
@@ -29,7 +30,8 @@ except FileExistsError:
 
 writer=pd.read_csv(main_path+'input/infobox_new.csv') 
 wid_to_qid=pd.read_csv(main_path+'input/wid_to_qid.tsv',delimiter='\t')
-qid_subject=pd.read_csv(main_path+'input/qid_subject.tsv',delimiter='\t')
+qid_subject=pd.read_stata(qid_subject_path)
+qid_subject['subject']=qid_subject['subject'].str.encode('latin-1').str.decode('utf-8')
 
 #######drop those that are not wars at all
 writer=writer[writer['wid']!=288520]
@@ -42,12 +44,21 @@ writer=writer[writer['wid']!=207630]
 writer=writer[writer['wid']!=205658]
 writer=writer[writer['wid']!=338949]
 writer=writer[writer['wid']!=896446]
+writer=writer[writer['wid']!=10343280]##this one is quicky. The page of it was delete in January 2019 and the log shows that the arguers believe this one is only a legendary war without 
+                                      ## any warrant. So I delete it from the dataset
+writer=writer[writer['wid']!=44131689]
+writer=writer[writer['wid']!=17677848]
+writer=writer[writer['wid']!=4902286] 
+                   
 #######
 def function0(a,b):
     if a!=0:
         return a
     else:
         return b
+
+
+
 
 def direct(file,var,ex):
     file['comb1_2']=file[var].str.extract(ex,expand=False).fillna(0)
@@ -62,7 +73,7 @@ def direct2(file,var):
     direct(file,var,r'(.*?)\| *strength *=')
     direct(file,var,r'(.*?)\| *casualties *=')
     direct(file,var,r'(.*?)\| *campaignbox *=')
-    direct(file,var,r'(.*?)\| *units[123456]')
+    direct(file,var,r'(.*?)\| *units *[123456]')
     direct(file,var,r'(.*?)\| *conflict *=')
     direct(file,var,r'(.*?)\| *formations[12345678] *=')
     direct(file,var,r'(.*?)\| *place *=')
@@ -94,13 +105,20 @@ def direct2(file,var):
     direct(file,var,r'(.*?)\| *lat *=')
     direct(file,var,r'(.*?)\| *map_label *=')
     direct(file,var,r'(.*?)\| *presidency *=')
-    direct(file,var,r'(.*?)\| *strength1 *=')
+    direct(file,var,r'(.*?)\| *strength[12345678] *=')
+    direct(file,var,r'(.*?)\| *milstrength[12345678] *=')
+    direct(file,var,r'(.*?)\| *polstrength[12345678] *=')
+    
     direct(file,var,r'(.*?)\| *casus beli *=')
     direct(file,var,r'(.*?)\| *sicilyresult *=')
     direct(file,var,r'(.*?)\| *casualties[12345678] *=')
     direct(file,var,r'(.*?)\| *target *=')
     direct(file,var,r'(.*?)\| *methods *=')
     direct(file,var,r'(.*?)\| *color_scheme *=')
+    direct(file,var,r'(.*?)\| *followed *by *=')
+    direct(file,var,r'(.*?) *commander[123456] *=')
+    direct(file,var,r'(.*?)\| *batailles *=')
+    
 ########
 
 def releasewithbig(file_in,file_out,var,i):
@@ -167,9 +185,14 @@ def releasewithoutbig(file_in,file_out,var,i):
 
 
 writer['tmp']=writer['tmp'].str.replace(r'\{\{Pufc\|1=\|date=.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{pufc\|1=\|date=.*?\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{Dubious\|date=.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{dubious\|date=.*?\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{page needed\|date=.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{deadlink *\|date=.*?\}\}','')
 
+
+writer['tmp']=writer['tmp'].str.replace(r'<ref name=(.*?)\/>.*?<ref name=\1>','') ##Attention: to refine the results of commanders, I make a little change here thus cause a chaos in the time part. Athough other parts of this data sets shuold not be interupted so serious as time part was, but we still need to be careful whether the results of other parts have been changed due to this change
 writer['tmp']=writer['tmp'].str.replace(r'<ref[^/]*?>.*?<\/ref>','')
 writer['tmp']=writer['tmp'].str.replace(r'<ref.*?>','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{ref *label.*?\}\}','')
@@ -177,6 +200,12 @@ writer['tmp']=writer['tmp'].str.replace(r'\{\{smallsup\|.*?\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'<sup>.*?<\/sup>','')
 writer['tmp']=writer['tmp'].str.replace(r'<small[^/]*?>.*?<\/small>','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{cite web\|.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{cite dcb *\|.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{smaller *\|.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{r *\|group.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{cref *\|.*?\}\}','')
+
+
 writer['tmp']=writer['tmp'].str.replace(r'\{\{cn\|date.*?\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{cn\|.*?\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{small *\|.*?\}\}','')
@@ -205,9 +234,13 @@ writer['tmp']=writer['tmp'].str.replace(r'\{\{rp\|267\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{rp\|244-5\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{rp\|.*?\}\}','')
 writer['tmp']=writer['tmp'].str.replace(r'\{\{spaces\|\d+\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{space\|\d+\}\}','')
+
 writer['tmp']=writer['tmp'].str.replace(r'\{\{pad\|\d+px\}\}','')
-
-
+writer['tmp']=writer['tmp'].str.replace(r'\{\{deletable image.*?\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{nbsp\|\d*\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{flagicon image\|\|size=\d+px\}\}','')
+writer['tmp']=writer['tmp'].str.replace(r'\{\{flagicon image\|socialist red flag\.svg\}\}','')
 
 
 
@@ -492,13 +525,31 @@ def matchcommandercountry(file_in):
     file_in.drop_duplicates(inplace=True)
     file_in=file_in.drop('commander', axis=1).join(file_in['commander'].str.split('<hr/>d\)', expand=True).stack().reset_index(level=1, drop=True).rename('commander'))
     file_in.drop_duplicates(inplace=True)
-    
+    file_in=file_in.drop('commander', axis=1).join(file_in['commander'].str.split('<hr/>', expand=True).stack().reset_index(level=1, drop=True).rename('commander'))
+    file_in.drop_duplicates(inplace=True)
+  
     file_in=file_in.drop('commander', axis=1).join(file_in['commander'].str.split('\{\{-\}\}', expand=True).stack().reset_index(level=1, drop=True).rename('commander'))
     file_in.drop_duplicates(inplace=True)
     
     file_in=file_in.drop('commander', axis=1).join(file_in['commander'].str.split('\| *\d{1,2} *=', expand=True).stack().reset_index(level=1, drop=True).rename('commander'))
     file_in.drop_duplicates(inplace=True)
     return file_in
+
+def condition_b(file_in,ex):
+    file_in['condition_b_1']=file_in['commander'].str.extract(ex,expand=False).fillna(0)
+    file_in['shadow']=file_in['condition_b']
+    file_in['condition_b']=file_in.apply(lambda x: function0(x.condition_b_1,x.shadow), axis=1)
+    file_in.drop(['condition_b_1','shadow'],axis=1, inplace=True)
+def commandercondition_bracket(file_in):
+    file_in['condition_b']=file_in['commander'].str.extract(r'\[\[(death by natural causes.*?)]\]',expand=False)
+    condition_b(file_in, r'\[\[(death by natural causes.*?)\]\]')
+    condition_b(file_in, r'\[\[([^[]*?\|\†)\]\]')
+    condition_b(file_in, r'\[\[([^[]*?\|\ⱶ)\]\]')
+    condition_b(file_in, r'\[\[([^[]*?\|\+)\]\]')
+    condition_b(file_in, r'\[\[(wounded in action)\|\]\]')
+    condition_b(file_in, r'\[\[(executed by hanging\|\☠)\]\]')
+    condition_b(file_in, r'\[\[(\†)\]\]')
+    condition_b(file_in, r'\[\[(pow)\]\]')
 
 def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.strip()
@@ -512,10 +563,24 @@ def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.replace(r'\[\[ *file:.*?\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'<small[^/]*?>.*?<\/small>','')
     file_in['commander']=file_in['commander'].str.replace(r'\{\{cite web\|.*?\}\}','')
+    file_in['commander']=file_in['commander'].str.replace(r'\{\{cite dcb *\|.*?\}\}','')
+
     file_in['commander']=file_in['commander'].str.strip()
     file_in['image']=file_in['commander'].str.extract(r'\[\[image:(.*?)\]\]',expand=False)
+    
     file_in['commander']=file_in['commander'].str.replace(r'\[\[image:.*?\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\{\{small\|.*?\}\}','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[1st belorussian front\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[1st combat evaluation group.*?\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[1st florida cavalry regiment.*?\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[\d+th army.*?\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[\d+th regiment of foot.*?\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[\d+th air force\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[\d+th infantry division.*?\]\]','')
+    
+    
+    
+    
     file_in['commander']=file_in['commander'].str.replace(r'\[\[mraf\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[tsar\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[lord\]\]','')
@@ -526,17 +591,20 @@ def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.replace(r'\(.*?\)','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[death by natural causes.*?]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[death by natural causes.*?\]\]','')
-    file_in['commander']=file_in['commander'].str.replace(r'\[\[.*?\|†\]\]','')
-    file_in['commander']=file_in['commander'].str.replace(r'\[\[.*?\|#\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[[^[]*?\|†\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[[^[]*?\|#\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[madame\|m<sup>me</sup>\]\]','')
-    file_in['commander']=file_in['commander'].str.replace(r'\[\[.*?\|ⱶ\]\]','')
-    file_in['commander']=file_in['commander'].str.replace(r'\[\[.*?\|\+\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[madame\|m\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[[^[]*?\|ⱶ\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[[^[]*?\|\+\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[captain \|naval captain\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[general officer\|gen\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[major general\|majgen\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[major general\|maj\.gen\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[lieutenant-general\|lt.gen\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[lieutenant general\|lt.gen\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[germanic kingship\|king\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[mercenaries\]\]','')
     
     file_in['commander']=file_in['commander'].str.replace(r'\[\[admiral\|adm\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[admiral \|adm\]\]','')
@@ -544,6 +612,8 @@ def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.replace(r'\[\[rear admiral\]\]','')
     
     file_in['commander']=file_in['commander'].str.replace(r'\[\[commander\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[commander\|comm\]\]','')
+    
     file_in['commander']=file_in['commander'].str.replace(r'\[\[general\]\]','')
     
     file_in['commander']=file_in['commander'].str.replace(r'\[\[general \|gen\]\]','')
@@ -586,6 +656,7 @@ def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.replace(r'\[\[haganah\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[air chief marshal\|acm\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[colonel\|col\.\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[ban *|ban *\]\]','')
     
     file_in['commander']=file_in['commander'].str.replace(r'\[\[commanding officer\|co\.\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[governor general of india\|gov\. gen\.\]\]','')
@@ -606,7 +677,7 @@ def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.replace(r'\[\[major\|maj\.\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[group captain\|gp capt\.\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[consul\]\]','')
-    file_in['commander']=file_in['commander'].str.replace(r'\[\[lieutenant general、|lt\.gen\.\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[lieutenant general|lt\.gen\.\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[major general\|maj\. gen\.\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[grand hetman of lithuania\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[vice admiral\|v\.adm\]\]','')
@@ -886,23 +957,36 @@ def commandercleaning(file_in):
     file_in['commander']=file_in['commander'].str.replace(r'\[\[governor of worcester\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[co-belligerence\|co-belligerent\]\]','')
     file_in['commander']=file_in['commander'].str.replace(r'\[\[kingdom of georgia\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[amir\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[taliban insurgency\|taliban insurgents\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[horka \|harka\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[korvettenkapitän\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[people\'s liberation army\|pla\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[oberführer\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[chief of army staff of the bangladesh army\|chief of army staff\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[walī\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[walī\|wali\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[armée du var\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[feldzeugmeister\]\]','')
+    file_in['commander']=file_in['commander'].str.replace(r'\[\[gauleiter\]\]','')
+
     file_in['commander']=file_in['commander'].str.strip()
     return file_in
 
-def releasebracket(file_out):
+def releasebracket(file_in,file_out):
     rcount=0
-    for row in brackets.iterrows():
+    for row in file_in.iterrows():
         #print(row[1][0])
         rcount=rcount+1
         print(rcount)
        
-        if row[1][3]==0:
-            file_out=file_out.append(pd.DataFrame({'wid':[row[1][0]],'title':[row[1][1]],'tmp':[row[1][2]],'commander':[row[1][3]],'image':[0]}),ignore_index=True) 
-        if row[1][3]!=0:
+        if row[1][6]==0:
+            file_out=file_out.append(pd.DataFrame({'wid':[row[1][0]],'title':[row[1][1]],'tmp':[row[1][2]],'commander':[row[1][6]],'condition_b':[0],'image':[0]}),ignore_index=True) 
+        if row[1][6]!=0:
             counter=0
             text=''
             sm=0
-            for c in row[1][3]:
+            for c in row[1][6]:
                 
                 
                 if c=='[':
@@ -917,15 +1001,12 @@ def releasebracket(file_out):
                     
                 if counter==0 and sm>0:
                     text=text+c
-                    file_out=file_out.append(pd.DataFrame({'wid':[row[1][0]],'title':[row[1][1]],'tmp':[row[1][2]],'commander':[text],'image':[0]}),ignore_index=True)
+                    file_out=file_out.append(pd.DataFrame({'wid':[row[1][0]],'title':[row[1][1]],'tmp':[row[1][2]],'commander':[text],'condition_b':[0],'image':[0]}),ignore_index=True)
                     text=''
                     sm=0
     return file_out
 
 def splictcommandercountry(file_in):
-    info_commander_nob.drop('brackets',axis=1, inplace=True)
-    file_in=info_commander_nob.append(brackets_infobox,ignore_index=True)
-    file_in=file_in.reset_index(drop=True)
     file_in['linked']=file_in['commander'].str.extract(r'\[\[(.*?)\]\]',expand=False)
     file_in=file_in.fillna(0)
     file_in=file_in[file_in['linked']!=0]
@@ -936,6 +1017,18 @@ def splictcommandercountry(file_in):
     file_in=file_in.drop('country',axis=1).join(df2)
     return file_in
 
+def splictcommanderkia(file_in):
+    file_in['commander']=file_in['commander'].str.replace(r'\{\{endplainlist\}\}','')
+    file_in['commander']=file_in['commander'].str.replace(r'\{\{clear\}\}','')
+    file_in['commander']=file_in['commander'].str.replace(r'\{\{cref\|g\}\}','')
+    file_in['commander']=file_in['commander'].str.replace(r'\{\{midsize\|}\}','')
+    file_in['condition']=file_in['commander'].str.extract(r'\]\] *\{\{(.*)\}\}',expand=False)
+    file_in=file_in.fillna(0)
+    df1=file_in['condition'].str.split('{{',expand=True)
+    df1=df1.fillna(0)
+    file_in=file_in.drop('condition',axis=1).join(df1)
+    return file_in
+
 def cleanimage(file_in):
     file_in['image']=file_in['image'].str.strip()
     file_in=file_in.fillna(0)
@@ -944,6 +1037,7 @@ def cleanimage(file_in):
     file_in['image']=file_in['image'].str.replace(r'\.jpg.*','')
     file_in['image']=file_in['image'].str.replace(r'\.gif.*','')
     file_in['image']=file_in['image'].str.replace(r'flagicon image *\|','')
+    file_in['image']=file_in['image'].str.replace(r'flagdeco *\|','')
     file_in['image']=file_in['image'].str.replace(r'_',' ')
     file_in['image']=file_in['image'].str.replace(r'flag of','')
     file_in['image']=file_in['image'].str.strip()
@@ -1026,6 +1120,8 @@ def cleanimage(file_in):
     file_in['image']=file_in['image'].str.replace(r'governorgeneral of','')
     file_in['image']=file_in['image'].str.replace(r'prime minister of','') 
     file_in['image']=file_in['image'].str.strip()
+    file_in['image']=file_in['image'].str.replace(r' logo$','')
+    file_in['image']=file_in['image'].str.strip()
     file_in=file_in.fillna(0)
     return file_in
 
@@ -1042,6 +1138,17 @@ def cleancommanderof(file_in,var):
     file_in[var]=file_in[var].str.replace(r'\|.*','')
     file_in=file_in.fillna(0)
     return file_in
+def cleancondition(file_in,var):
+    file_in[var]=info_commander[var].str.replace(r'\|alt=yes','')
+    file_in[var]=info_commander[var].str.replace(r'flag.*','')
+    file_in[var]=info_commander[var].str.replace(r'\&nbsp\;','')
+    file_in[var]=info_commander[var].str.replace(r'kia2','kia')
+    file_in=file_in.replace('',np.nan)
+    file_in=file_in.fillna(0)
+    return file_in
+
+
+
 ###################commander1 ##########################
 info_commander=writer.loc[:,['wid','title','tmp']]
 info_commander['commander']=info_commander['tmp'].str.extract(r'commander1(.*)',expand=False)
@@ -1056,22 +1163,54 @@ info_commander=info_commander.fillna(0)
 missing=info_commander[info_commander['commander']==0]
 info_commander=info_commander[info_commander['commander']!=0]
 
+#info_commander.drop(['conditon_b_1','conditon_b'],axis=1, inplace=True)
+####catch the kia information from the square brackets
+commandercondition_bracket(info_commander)
+####
 info_commander=commandercleaning(info_commander)
-
 ####whether there are more than 2 square brackets in a cell
 info_commander['brackets']=info_commander['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
 info_commander=info_commander.fillna(0)
 info_commander_nob=info_commander[info_commander['brackets']==0]
 brackets=info_commander[info_commander['brackets']!=0]
 brackets=brackets.fillna(0)
+
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\{\{flag',']]<br>{{flag')
+brackets['commander']=brackets['commander'].str.replace(r'\]\]\; *\{\{flagicon',']]<br>{{flagicon')   
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *and *\[\[',']]<br>[[')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\[\[',']]<br>[[')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{kia\}\}[^$]','{{kia}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{wia\}\}[^$]','{{wia}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{surrendered\}\}[^$]','{{surrendered}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{executed\}\}[^$]','{{executed}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\}\} *\{\{flagdeco\|',']]}}<br>{{flagdeco|')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\}\} *\{\{flagicon\|',']]}}<br>{{flagicon|')
+
+
+brackets=matchcommandercountry(brackets)
+
+brackets['brackets2']=brackets['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
+brackets=brackets.fillna(0)
+info_commander_nob2=brackets[brackets['brackets2']==0]
+brackets2=brackets[brackets['brackets2']!=0]
+brackets2=brackets2.fillna(0)
 ####
 ####the items in the dataset"brackets" are special cases which we cannot treat them in a normal way, so just catch the commanders(which are in the square brackets) from this dataset without getting their nationalities
-brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','image'))
-brackets_infobox=releasebracket(brackets_infobox)
+brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','condition_b','image'))
+brackets_infobox=releasebracket(brackets2,brackets_infobox)
+
+info_commander_nob.drop('brackets',axis=1, inplace=True)
+info_commander_nob2.drop(['brackets','brackets2'],axis=1, inplace=True)
+info_commander_nob2=info_commander_nob2.loc[:,['wid','title','tmp','commander','condition_b','image']]
+info_commander_nob=info_commander_nob.append(info_commander_nob2,ignore_index=True)
+info_commander=info_commander_nob.append(brackets_infobox,ignore_index=True)
+info_commander=info_commander.reset_index(drop=True)
+
+
 ####
-####split the commanders and the countries(forces) they served
+####split the commanders and the countries(forces) they served and then match them
 info_commander=splictcommandercountry(info_commander)
-####
+
 info_commander.rename(columns={0:'commander_of_1',1:'commander_of_2',2:'commander_of_3'},inplace=True)
 info_commander['commander_of_1']=info_commander['commander_of_1'].str.replace(r'\{\{','')
 info_commander['commander_of_2']=info_commander['commander_of_2'].str.replace(r'\{\{','')
@@ -1081,6 +1220,29 @@ info_commander['commander_of_2']=info_commander['commander_of_2'].str.replace(r'
 info_commander['commander_of_3']=info_commander['commander_of_3'].str.replace(r'\}\}','')
 info_commander=info_commander.fillna(0)
 
+####
+####split the comanders and the kia information and then match them
+info_commander=splictcommanderkia(info_commander)
+
+info_commander.rename(columns={0:'condition_1',1:'condition_2',2:'condition_3'},inplace=True)
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\{\{','')
+info_commander['condition_2']=info_commander['condition_2'].str.replace(r'\{\{','')
+info_commander['condition_3']=info_commander['condition_3'].str.replace(r'\{\{','')
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\}\}','')
+info_commander['condition_2']=info_commander['condition_2'].str.replace(r'\}\}','')
+info_commander['condition_3']=info_commander['condition_3'].str.replace(r'\}\}','')
+
+info_commander=cleancondition(info_commander, 'condition_1')
+info_commander=cleancondition(info_commander, 'condition_2')
+info_commander=cleancondition(info_commander, 'condition_3')
+info_commander=info_commander.replace('',np.nan)
+info_commander=info_commander.fillna(0)
+##combine condition_b and condition_123
+info_commander['condition_1']=info_commander.apply(lambda x: function0(x.condition_1,x.condition_b), axis=1)
+info_commander.drop('condition_b',axis=1, inplace=True)
+##
+
+####
 #####clean variable 'image'
 info_commander=cleanimage(info_commander)
 
@@ -1103,13 +1265,31 @@ missing['linked']=0
 missing['commander_of_1']=0
 missing['commander_of_2']=0
 missing['commander_of_3']=0
+missing['condition_1']=0
+missing['condition_2']=0
+missing['condition_3']=0
 
 commander1_infobox=info_commander.append(missing,ignore_index=True)
-commander1_infobox=commander1_infobox.loc[:,['wid','title','linked','commander_of_1','commander_of_2','commander_of_3']]
+commander1_infobox=commander1_infobox.loc[:,['wid','title','linked','commander_of_1','commander_of_2','commander_of_3','condition_1','condition_2','condition_3']]
 commander1_infobox.rename(columns={'linked':'commander'},inplace=True)
 commander1_infobox['commander_of_4']=0
 commander1_infobox['side']=1
+commander1_infobox=commander1_infobox.loc[:,['wid','title','commander','commander_of_1','commander_of_2','commander_of_3','commander_of_4','condition_1','condition_2','condition_3','side']]
+commander1_infobox['commander']=commander1_infobox['commander'].str.strip()
+commander1_infobox['commander_of_1']=commander1_infobox['commander_of_1'].str.strip()
+commander1_infobox['commander_of_2']=commander1_infobox['commander_of_2'].str.strip()
+commander1_infobox['commander_of_3']=commander1_infobox['commander_of_3'].str.strip()
+commander1_infobox['condition_1']=commander1_infobox['condition_1'].str.strip()
+commander1_infobox['condition_2']=commander1_infobox['condition_2'].str.strip()
+commander1_infobox['condition_3']=commander1_infobox['condition_3'].str.strip()
+commander1_infobox=commander1_infobox.replace('',np.nan)
 commander1_infobox=commander1_infobox.replace(0,np.nan)
+
+
+
+
+
+
 
 ##############################################################
 ########################commander2 ###########################
@@ -1125,6 +1305,9 @@ info_commander=info_commander.fillna(0)
 missing=info_commander[info_commander['commander']==0]
 info_commander=info_commander[info_commander['commander']!=0]
 
+####catch the kia information from the square brackets
+commandercondition_bracket(info_commander)
+####
 info_commander=commandercleaning(info_commander)
 ####whether there are more than 2 square brackets in a cell
 info_commander['brackets']=info_commander['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
@@ -1132,10 +1315,40 @@ info_commander=info_commander.fillna(0)
 info_commander_nob=info_commander[info_commander['brackets']==0]
 brackets=info_commander[info_commander['brackets']!=0]
 brackets=brackets.fillna(0)
+
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\{\{flag',']]<br>{{flag')
+brackets['commander']=brackets['commander'].str.replace(r'\]\]\; *\{\{flagicon',']]<br>{{flagicon')   
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *and *\[\[',']]<br>[[')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\[\[',']]<br>[[')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{kia\}\}[^$]','{{kia}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{wia\}\}[^$]','{{wia}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{surrendered\}\}[^$]','{{surrendered}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{executed\}\}[^$]','{{executed}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\}\} *\{\{flagdeco\|',']]}}<br>{{flagdeco|')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\}\} *\{\{flagicon\|',']]}}<br>{{flagicon|')
+brackets['commander']=brackets['commander'].str.replace(r'\| units involved.*','')
+
+
+brackets=matchcommandercountry(brackets)
+
+brackets['brackets2']=brackets['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
+brackets=brackets.fillna(0)
+info_commander_nob2=brackets[brackets['brackets2']==0]
+brackets2=brackets[brackets['brackets2']!=0]
+brackets2=brackets2.fillna(0)
 ####
 ####the items in the dataset"brackets" are special cases which we cannot treat them in a normal way, so just catch the commanders(which are in the square brackets) from this dataset without getting their nationalities
-brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','image'))
-brackets_infobox=releasebracket(brackets_infobox)
+brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','condition_b','image'))
+brackets_infobox=releasebracket(brackets2,brackets_infobox)
+
+info_commander_nob.drop('brackets',axis=1, inplace=True)
+info_commander_nob2.drop(['brackets','brackets2'],axis=1, inplace=True)
+info_commander_nob2=info_commander_nob2.loc[:,['wid','title','tmp','commander','condition_b','image']]
+info_commander_nob=info_commander_nob.append(info_commander_nob2,ignore_index=True)
+info_commander=info_commander_nob.append(brackets_infobox,ignore_index=True)
+info_commander=info_commander.reset_index(drop=True)
+
+
 ####
 ####split the commanders and the countries(forces) they served
 info_commander=splictcommandercountry(info_commander)
@@ -1150,6 +1363,33 @@ info_commander['commander_of_2']=info_commander['commander_of_2'].str.replace(r'
 info_commander['commander_of_3']=info_commander['commander_of_3'].str.replace(r'\}\}','')
 info_commander['commander_of_4']=info_commander['commander_of_4'].str.replace(r'\}\}','')
 info_commander=info_commander.fillna(0)
+####
+
+####split the comanders and the kia information and then match them
+info_commander['commander']=info_commander['commander'].str.replace(r'\|sa’ad ud-din khan\|nisar muhammad khan\|khwaja ashura\|.*','')
+info_commander=splictcommanderkia(info_commander)
+
+
+info_commander.rename(columns={0:'condition_1',1:'condition_2'},inplace=True)
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\{\{','')
+info_commander['condition_2']=info_commander['condition_2'].str.replace(r'\{\{','')
+
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\}\}','')
+info_commander['condition_2']=info_commander['condition_2'].str.replace(r'\}\}','')
+
+
+info_commander=cleancondition(info_commander, 'condition_1')
+info_commander=cleancondition(info_commander, 'condition_2')
+
+info_commander=info_commander.replace('',np.nan)
+info_commander=info_commander.fillna(0)
+##combine condition_b and condition_12
+info_commander['condition_1']=info_commander.apply(lambda x: function0(x.condition_1,x.condition_b), axis=1)
+info_commander.drop('condition_b',axis=1, inplace=True)
+##
+
+####
+
 #####clean variable 'image'
 info_commander=cleanimage(info_commander)
 
@@ -1169,7 +1409,7 @@ info_commander['commander_of_3']=info_commander['commander_of_3'].str.replace(r'
 info_commander['commander_of_3']=info_commander['commander_of_3'].str.replace(r'\|.*','')
 info_commander=info_commander.fillna(0)
 ####
-####clean variable variable 'commander_of_3'
+####clean variable variable 'commander_of_4'
 
 info_commander['commander_of_4']=info_commander['commander_of_4'].str.replace(r'^.*?\|','')
 info_commander['commander_of_4']=info_commander['commander_of_4'].str.replace(r'\|.*','')
@@ -1180,14 +1420,26 @@ missing['commander_of_1']=0
 missing['commander_of_2']=0
 missing['commander_of_3']=0
 missing['commander_of_4']=0
-
+missing['condition_1']=0
+missing['condition_2']=0
 
 
 commander2_infobox=info_commander.append(missing,ignore_index=True)
-commander2_infobox=commander2_infobox.loc[:,['wid','title','linked','commander_of_1','commander_of_2','commander_of_3','commander_of_4']]
+commander2_infobox=commander2_infobox.loc[:,['wid','title','linked','commander_of_1','commander_of_2','commander_of_3','commander_of_4','condition_1','condition_2']]
 commander2_infobox.rename(columns={'linked':'commander'},inplace=True)
+commander2_infobox['condition_3']=0
 commander2_infobox['side']=2
 commander2_infobox['commander_of_1']=commander2_infobox['commander_of_1'].replace('red flag.svg',0)
+commander2_infobox['commander_of_1']=commander2_infobox['commander_of_1'].replace(r'black flag.svg',0)
+commander2_infobox=commander2_infobox.loc[:,['wid','title','commander','commander_of_1','commander_of_2','commander_of_3','commander_of_4','condition_1','condition_2','condition_3','side']]
+commander2_infobox['commander']=commander2_infobox['commander'].str.strip()
+commander2_infobox['commander_of_1']=commander2_infobox['commander_of_1'].str.strip()
+commander2_infobox['commander_of_2']=commander2_infobox['commander_of_2'].str.strip()
+commander2_infobox['commander_of_3']=commander2_infobox['commander_of_3'].str.strip()
+commander2_infobox['commander_of_4']=commander2_infobox['commander_of_4'].str.strip()
+commander2_infobox['condition_1']=commander2_infobox['condition_1'].str.strip()
+commander2_infobox['condition_2']=commander2_infobox['condition_2'].str.strip()
+commander2_infobox=commander2_infobox.replace('',np.nan)
 commander2_infobox=commander2_infobox.replace(0,np.nan)
 
 ##############################################################
@@ -1203,7 +1455,9 @@ info_commander=info_commander.reset_index(drop=True)
 info_commander=info_commander.fillna(0)
 missing=info_commander[info_commander['commander']==0]
 info_commander=info_commander[info_commander['commander']!=0]
-
+####catch the kia information from the square brackets
+commandercondition_bracket(info_commander)
+####
 info_commander=commandercleaning(info_commander)
 ####whether there are more than 2 square brackets in a cell
 info_commander['brackets']=info_commander['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
@@ -1211,10 +1465,39 @@ info_commander=info_commander.fillna(0)
 info_commander_nob=info_commander[info_commander['brackets']==0]
 brackets=info_commander[info_commander['brackets']!=0]
 brackets=brackets.fillna(0)
+
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\{\{flag',']]<br>{{flag')
+brackets['commander']=brackets['commander'].str.replace(r'\]\]\; *\{\{flagicon',']]<br>{{flagicon')   
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *and *\[\[',']]<br>[[')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\[\[',']]<br>[[')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{kia\}\}[^$]','{{kia}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{wia\}\}[^$]','{{wia}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{surrendered\}\}[^$]','{{surrendered}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\{\{executed\}\}[^$]','{{executed}}<br>')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\}\} *\{\{flagdeco\|',']]}}<br>{{flagdeco|')
+brackets['commander']=brackets['commander'].str.replace(r'\]\] *\}\} *\{\{flagicon\|',']]}}<br>{{flagicon|')
+brackets['commander']=brackets['commander'].str.replace(r'\| units involved.*','')
+
+brackets=matchcommandercountry(brackets)
+
+brackets['brackets2']=brackets['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
+brackets=brackets.fillna(0)
+info_commander_nob2=brackets[brackets['brackets2']==0]
+brackets2=brackets[brackets['brackets2']!=0]
+brackets2=brackets2.fillna(0)
 ####
 ####the items in the dataset"brackets" are special cases which we cannot treat them in a normal way, so just catch the commanders(which are in the square brackets) from this dataset without getting their nationalities
-brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','image'))
-brackets_infobox=releasebracket(brackets_infobox)
+brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','condition_b','image'))
+brackets_infobox=releasebracket(brackets2,brackets_infobox)
+
+info_commander_nob.drop('brackets',axis=1, inplace=True)
+info_commander_nob2.drop(['brackets','brackets2'],axis=1, inplace=True)
+info_commander_nob2=info_commander_nob2.loc[:,['wid','title','tmp','commander','condition_b','image']]
+info_commander_nob=info_commander_nob.append(info_commander_nob2,ignore_index=True)
+info_commander=info_commander_nob.append(brackets_infobox,ignore_index=True)
+info_commander=info_commander.reset_index(drop=True)
+
+
 ####
 ####split the commanders and the countries(forces) they served
 info_commander=splictcommandercountry(info_commander)
@@ -1225,6 +1508,25 @@ info_commander['commander_of_2']=info_commander['commander_of_2'].str.replace(r'
 info_commander['commander_of_1']=info_commander['commander_of_1'].str.replace(r'\}\}','')
 info_commander['commander_of_2']=info_commander['commander_of_2'].str.replace(r'\}\}','')
 info_commander=info_commander.fillna(0)
+####
+####split the comanders and the kia information and then match them
+info_commander=splictcommanderkia(info_commander)
+
+info_commander.rename(columns={0:'condition_1'},inplace=True)
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\{\{','')
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\}\}','')
+
+info_commander=cleancondition(info_commander, 'condition_1')
+
+info_commander=info_commander.replace('',np.nan)
+info_commander=info_commander.fillna(0)
+##combine condition_b and condition_123
+info_commander['condition_1']=info_commander.apply(lambda x: function0(x.condition_1,x.condition_b), axis=1)
+info_commander.drop('condition_b',axis=1, inplace=True)
+##
+
+####
+
 #####clean variable 'image'
 info_commander=cleanimage(info_commander)
 
@@ -1238,13 +1540,21 @@ info_commander=cleancommanderof(info_commander,'commander_of_1')
 ####clean variable variable 'commander_of_2'
 info_commander=cleancommanderof(info_commander,'commander_of_2')
 ####
-commander3_infobox=info_commander.loc[:,['wid','title','linked','commander_of_1','commander_of_2']]
+commander3_infobox=info_commander.loc[:,['wid','title','linked','commander_of_1','commander_of_2','condition_1']]
 commander3_infobox.rename(columns={'linked':'commander'},inplace=True)
 commander3_infobox['commander_of_3']=0
 commander3_infobox['commander_of_4']=0
+commander3_infobox['condition_2']=0
+commander3_infobox['condition_3']=0
 commander3_infobox['side']=3
 commander3_infobox['commander_of_1']=commander3_infobox['commander_of_1'].replace('red flag.svg',0)
+commander3_infobox=commander3_infobox.loc[:,['wid','title','commander','commander_of_1','commander_of_2','commander_of_3','commander_of_4','condition_1','condition_2','condition_3','side']]
+commander3_infobox=commander3_infobox.replace('',np.nan)
 commander3_infobox=commander3_infobox.replace(0,np.nan)
+commander3_infobox['commander']=commander3_infobox['commander'].str.strip()
+commander3_infobox['commander_of_1']=commander3_infobox['commander_of_1'].str.strip()
+commander3_infobox['commander_of_2']=commander3_infobox['commander_of_2'].str.strip()
+commander3_infobox['condition_1']=commander3_infobox['condition_1'].str.strip()
 
 ##############################################################
 ########################commander4 ###########################
@@ -1259,24 +1569,104 @@ info_commander=info_commander.reset_index(drop=True)
 info_commander=info_commander.fillna(0)
 missing=info_commander[info_commander['commander']==0]
 info_commander=info_commander[info_commander['commander']!=0]
-
+####catch the kia information from the square brackets
+commandercondition_bracket(info_commander)
+####
 info_commander=commandercleaning(info_commander)
-########
-info_commander['linked']=info_commander['commander'].str.extract(r'\[\[(.*?)\]\]',expand=False)
+####whether there are more than 2 square brackets in a cell
+info_commander['brackets']=info_commander['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
 info_commander=info_commander.fillna(0)
-info_commander=info_commander[info_commander['linked']!=0]
+info_commander_nob=info_commander[info_commander['brackets']==0]
+brackets=info_commander[info_commander['brackets']!=0]
+brackets=brackets.fillna(0)
+try:    
+    brackets['commander']=brackets['commander'].str.replace(r'\]\] *\{\{flag',']]<br>{{flag')
+    brackets['commander']=brackets['commander'].str.replace(r'\]\] *and *\[\[',']]<br>[[')
+    brackets['commander']=brackets['commander'].str.replace(r'\{\{kia\}\}[^$]','{{kia}}<br>')
+    brackets['commander']=brackets['commander'].str.replace(r'\{\{wia\}\}[^$]','{{wia}}<br>')
+    brackets['commander']=brackets['commander'].str.replace(r'\{\{surrendered\}\}[^$]','{{surrendered}}<br>')
+    brackets['commander']=brackets['commander'].str.replace(r'\]\]\}\} *\{\{flagdeco\|',']]}}<br>{{flagdeco|')
+    brackets=matchcommandercountry(brackets)
+except (AttributeError):
+    pass
+brackets['brackets2']=brackets['commander'].str.extract(r'\[\[(.*?)\]\].*?\[\[',expand=False)
+brackets=brackets.fillna(0)
+info_commander_nob2=brackets[brackets['brackets2']==0]
+brackets2=brackets[brackets['brackets2']!=0]
+brackets2=brackets2.fillna(0)
+####
+####the items in the dataset"brackets" are special cases which we cannot treat them in a normal way, so just catch the commanders(which are in the square brackets) from this dataset without getting their nationalities
+brackets_infobox = pd.DataFrame(columns=('wid','title','tmp','commander','condition_b','image'))
+brackets_infobox=releasebracket(brackets2,brackets_infobox)
+
+info_commander_nob.drop('brackets',axis=1, inplace=True)
+info_commander_nob2.drop(['brackets','brackets2'],axis=1, inplace=True)
+info_commander_nob2=info_commander_nob2.loc[:,['wid','title','tmp','commander','condition_b','image']]
+info_commander_nob=info_commander_nob.append(info_commander_nob2,ignore_index=True)
+info_commander=info_commander_nob.append(brackets_infobox,ignore_index=True)
+info_commander=info_commander.reset_index(drop=True)
+
+
+####
+####split the commanders and the countries(forces) they served and then match them
+info_commander=splictcommandercountry(info_commander)
+
+info_commander.rename(columns={0:'commander_of_1'},inplace=True)
+info_commander['commander_of_1']=info_commander['commander_of_1'].str.replace(r'\{\{','')
+info_commander['commander_of_1']=info_commander['commander_of_1'].str.replace(r'\}\}','')
+info_commander=info_commander.fillna(0)
+
+####
+####split the comanders and the kia information and then match them
+info_commander=splictcommanderkia(info_commander)
+
+info_commander.rename(columns={0:'condition_1'},inplace=True)
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\{\{','')
+info_commander['condition_1']=info_commander['condition_1'].str.replace(r'\}\}','')
+info_commander=info_commander.fillna(0)
+
+info_commander=cleancondition(info_commander, 'condition_1')
+info_commander=info_commander.replace('',np.nan)
+info_commander=info_commander.fillna(0)
+##combine condition_b and condition_123
+info_commander['condition_1']=info_commander.apply(lambda x: function0(x.condition_1,x.condition_b), axis=1)
+info_commander.drop('condition_b',axis=1, inplace=True)
+##
+
+####
+#####clean variable 'image'
+try:
+    info_commander=cleanimage(info_commander)
+except (AttributeError):
+    pass
+
+image=info_commander[info_commander['image']!=0]
+
+info_commander['commander_of_1']=info_commander.apply(lambda x: function0(x.image,x.commander_of_1), axis=1)
+info_commander.drop('image',axis=1, inplace=True)
 info_commander['linked']=info_commander['linked'].str.replace(r'\|.*','')
+####
+####clean variable variable 'commander_of_1'
+info_commander=cleancommanderof(info_commander,'commander_of_1')
+####
+########
 
 
-info_commander['commander_of_1']=info_commander['commander'].str.extract(r'\{\{.*\|(.*?)\}\}',expand=False)
 info_commander['commander_of_1']=info_commander['commander_of_1'].replace(r'black flag.svg',0)
 info_commander['commander_of_1']=info_commander['commander_of_1'].replace(r'shababflag.svg',0)
-commander4_infobox=info_commander.loc[:,['wid','title','linked','commander_of_1']]
+commander4_infobox=info_commander.loc[:,['wid','title','linked','commander_of_1','condition_1']]
 commander4_infobox.rename(columns={'linked':'commander'},inplace=True)
 commander4_infobox['commander_of_2']=0
 commander4_infobox['commander_of_3']=0
 commander4_infobox['commander_of_4']=0
+commander4_infobox['condition_2']=0
+commander4_infobox['condition_3']=0
 commander4_infobox['side']=4
+commander4_infobox=commander4_infobox.loc[:,['wid','title','commander','commander_of_1','commander_of_2','commander_of_3','commander_of_4','condition_1','condition_2','condition_3','side']]
+commander4_infobox['commander']=commander4_infobox['commander'].str.strip()
+commander4_infobox['commander_of_1']=commander4_infobox['commander_of_1'].str.strip()
+commander4_infobox['condition_1']=commander4_infobox['condition_1'].str.strip()
+commander4_infobox=commander4_infobox.replace('',np.nan)
 commander4_infobox=commander4_infobox.replace(0,np.nan)
 
 
@@ -1306,7 +1696,11 @@ commander5_infobox['commander_of_1']=0
 commander5_infobox['commander_of_2']=0
 commander5_infobox['commander_of_3']=0
 commander5_infobox['commander_of_4']=0
+commander5_infobox['condition_1']=0
+commander5_infobox['condition_2']=0
+commander5_infobox['condition_3']=0
 commander5_infobox['side']='5'
+commander5_infobox['commander']=commander5_infobox['commander'].str.strip()
 commander5_infobox=commander5_infobox.replace(0,np.nan)
 
 ##############################################################
@@ -1316,12 +1710,83 @@ war_commander_infobox=war_commander_infobox.append(commander3_infobox,ignore_ind
 war_commander_infobox=war_commander_infobox.append(commander4_infobox,ignore_index=True)
 war_commander_infobox=war_commander_infobox.append(commander5_infobox,ignore_index=True)
 
+####add the battles that have no commander information at all
+comlistwid=war_commander_infobox.loc[:,'wid']
+comlistwid.drop_duplicates(inplace=True)
+comlistwid=list(comlistwid)
+missing=writer[~writer['wid'].isin(comlistwid)]
+missing=missing.loc[:,['wid','title']]
+missing['commander']=0
+missing['commander_of_1']=0
+missing['commander_of_2']=0
+missing['commander_of_3']=0
+missing['commander_of_4']=0
+missing['condition_1']=0
+missing['condition_2']=0
+missing['condition_3']=0
+missing['side']=0
+missing=missing.replace(0,np.nan)
+war_commander_infobox=war_commander_infobox.append(missing,ignore_index=True)
+####
+
+
 war_commander_infobox=war_commander_infobox.sort_index(by = ["wid",'side'])
 
 war_commander_infobox['x1']=war_commander_infobox['commander'].str.extract(r'(war$)',expand=False)
 war_commander_infobox=war_commander_infobox.fillna(0)          
 war_commander_infobox=war_commander_infobox.loc[war_commander_infobox['x1']==0]
 war_commander_infobox.drop('x1',axis=1, inplace=True)
+
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'black flag.svg',0)
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'black_flag.svg',0)
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'socialist red flag.svg',0)
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'red flag.svg',0)
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'm-26-7.svg','m-26-7')
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'infoboxhez.png','hezbollah')
+war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].replace(r'beylik of aydin flag.png','beylik of aydin')
+
+
+####whether kia
+war_commander_infobox['kia_1']=war_commander_infobox['condition_1'].str.extract(r'(kia)',expand=False).replace('kia',1)
+war_commander_infobox['kia_2']=war_commander_infobox['condition_2'].str.extract(r'(kia)',expand=False).replace('kia',1)
+war_commander_infobox['kia_3']=war_commander_infobox['condition_3'].str.extract(r'(kia)',expand=False).replace('kia',1)
+war_commander_infobox=war_commander_infobox.fillna(0)
+war_commander_infobox['kia']=war_commander_infobox['kia_1']+war_commander_infobox['kia_2']+war_commander_infobox['kia_3']
+war_commander_infobox.loc[war_commander_infobox.kia>=1,'kia']=1
+
+war_commander_infobox['kia_1']=war_commander_infobox['condition_1'].str.extract(r'(killed in action)',expand=False).replace('killed in action',1)
+war_commander_infobox['kia_2']=war_commander_infobox['condition_2'].str.extract(r'(killed in action)',expand=False).replace('killed in action',1)
+war_commander_infobox['kia_3']=war_commander_infobox['condition_3'].str.extract(r'(killed in action)',expand=False).replace('killed in action',1)
+war_commander_infobox=war_commander_infobox.fillna(0)
+war_commander_infobox['killed']=war_commander_infobox['kia_1']+war_commander_infobox['kia_2']+war_commander_infobox['kia_3']
+war_commander_infobox.loc[war_commander_infobox.killed>=1,'killed']=1
+
+war_commander_infobox['kia_1']=war_commander_infobox['condition_1'].str.extract(r'(†)',expand=False).replace('†',1)
+war_commander_infobox['kia_2']=war_commander_infobox['condition_2'].str.extract(r'(†)',expand=False).replace('†',1)
+war_commander_infobox['kia_3']=war_commander_infobox['condition_3'].str.extract(r'(†)',expand=False).replace('†',1)
+war_commander_infobox=war_commander_infobox.fillna(0)
+war_commander_infobox['cross']=war_commander_infobox['kia_1']+war_commander_infobox['kia_2']+war_commander_infobox['kia_3']
+war_commander_infobox.loc[war_commander_infobox.cross>=1,'cross']=1
+
+war_commander_infobox['kia_1']=war_commander_infobox['condition_1'].str.extract(r'(assassinat)',expand=False).replace('assassinat',1)
+war_commander_infobox['kia_2']=war_commander_infobox['condition_2'].str.extract(r'(assassinat)',expand=False).replace('assassinat',1)
+war_commander_infobox['kia_3']=war_commander_infobox['condition_3'].str.extract(r'(assassinat)',expand=False).replace('assassinat',1)
+war_commander_infobox=war_commander_infobox.fillna(0)
+war_commander_infobox['assassination']=war_commander_infobox['kia_1']+war_commander_infobox['kia_2']+war_commander_infobox['kia_3']
+war_commander_infobox.loc[war_commander_infobox.assassination>=1,'assassination']=1
+
+war_commander_infobox['dead_in_battle']=war_commander_infobox['kia']+war_commander_infobox['killed']+war_commander_infobox['cross']+war_commander_infobox['assassination']
+war_commander_infobox.loc[war_commander_infobox.dead_in_battle>=1,'dead_in_battle']=1
+war_commander_infobox.loc[war_commander_infobox.dead_in_battle==0,'dead_in_battle']=-1
+war_commander_infobox.drop(['kia_1','kia_2','kia_3','kia','killed','cross','assassination'],axis=1, inplace=True)
+####
+war_commander_infobox.loc[war_commander_infobox.commander==0, 'side']=0
+war_commander_infobox.loc[war_commander_infobox.commander==0, 'dead_in_battle']=0
+
+war_commander_infobox=war_commander_infobox[war_commander_infobox['commander']!='about 10105200-10170000 warriors and civilians killed during the war .additional 1000000 clavery 10000 elephants and 5000 horses killed during the war.']
+war_commander_infobox=war_commander_infobox[war_commander_infobox['commander']!='commander']
+
+
 
 
 war_commander_infobox=war_commander_infobox.replace('0',np.nan)
@@ -1331,18 +1796,132 @@ war_commander_infobox['commander_of_1']=war_commander_infobox['commander_of_1'].
 war_commander_infobox['commander_of_2']=war_commander_infobox['commander_of_2'].str.strip()
 war_commander_infobox['commander_of_3']=war_commander_infobox['commander_of_3'].str.strip()
 war_commander_infobox['commander_of_4']=war_commander_infobox['commander_of_4'].str.strip()
+war_commander_infobox['condition_1']=war_commander_infobox['condition_1'].str.strip()
+war_commander_infobox['condition_2']=war_commander_infobox['condition_2'].str.strip()
+war_commander_infobox['condition_3']=war_commander_infobox['condition_3'].str.strip()
+
+war_commander_infobox=war_commander_infobox.loc[:,['wid','title','commander','commander_of_1','commander_of_2','commander_of_3','commander_of_4','side','dead_in_battle','condition_1','condition_2','condition_3']]
+
+
 war_commander_infobox.to_csv(commanders_path,index=False)
+####################################Match the wids and commanders to  qids ####################################     
+
+war_commander_infobox=pd.read_csv(commanders_path)
+####wid to qid
+war_commander_infobox=pd.merge(war_commander_infobox,wid_to_qid,on='wid',how='left')
+war_commander_infobox.rename(columns={'qid': 'war_qid'}, inplace=True)
+####
+####commanders' names to qid
+qid_subject.rename(columns={'subject': 'commander'}, inplace=True)
+
+qid_subject['commander']=qid_subject['commander'].str.lower()# convert each value of 'subject' to lowercase  
+qid_subject['commander']=qid_subject['commander'].str.replace(r'_',' ') # replace "_" to " "
+qid_subject['commander']=qid_subject['commander'].str.replace(r'–','-') # replace "–" to "-"
+war_commander_infobox=pd.merge(war_commander_infobox,qid_subject,on='commander',how='left')
+
+person_infobox=pd.read_csv("D:\learning\Arash\info_person\input\infobox_person.csv")
+person_infobox=person_infobox.loc[:,['wid','title']]
+person_infobox['title']=person_infobox['title'].str.lower()
+person_infobox['title']=person_infobox['title'].str.strip()
+person_infobox.rename(columns={'title': 'commander'}, inplace=True)
+person_infobox.rename(columns={'wid': 'commander_wid'}, inplace=True)
+
+war_commander_infobox=pd.merge(war_commander_infobox,person_infobox,on='commander',how='left')
+wid_to_qid.rename(columns={'qid': 'com_qid'}, inplace=True)
+wid_to_qid.rename(columns={'wid': 'commander_wid'}, inplace=True)
+war_commander_infobox=pd.merge(war_commander_infobox,wid_to_qid,on='commander_wid',how='left')
+
+war_commander_infobox=war_commander_infobox.fillna(0)
+
+war_commander_infobox['commander_qid']=war_commander_infobox.apply(lambda x: function0(x.qid,x.com_qid), axis=1)
+
+
+
+#war_commander_infobox['dot']=war_commander_infobox['commander_of_3'].str.extract(r'(\.)',expand=False)
+#war_commander_infobox['dot']=war_commander_infobox['dot'].fillna(0)
+#dot=war_commander_infobox[war_commander_infobox['dot']!=0]
+
+qidAltSubject_en=pd.read_stata("D:/learning/Arash/war_participants/Fabian_06292019_WAR/Data/A1_00_qidAltSubject_en.dta")
+qidAltSubject_en['altSubject']=qidAltSubject_en['altSubject'].str.encode('latin-1').str.decode('utf-8')####Atention: This step is needed or there will be a lot of items unmatched
+qidAltSubject_en['altSubject']=qidAltSubject_en['altSubject'].str.lower()
+qidAltSubject_en['altSubject']=qidAltSubject_en['altSubject'].str.replace(r'_',' ')
+qidAltSubject_en.drop_duplicates(inplace=True)
+qidAltSubject_en.rename(columns={'altSubject': 'commander'}, inplace=True)
+
+
+
+war_commander_infobox=pd.merge(war_commander_infobox,qidAltSubject_en,on='commander',how='left')
+war_commander_infobox.drop_duplicates(inplace=True)
+
+#collect those commanders that are matched to two different qids
+duplicates=war_commander_infobox.loc[:,['commander','qid']]
+duplicates.drop_duplicates(inplace=True)
+duplicates_2=duplicates.loc[:,['commander']]
+group=duplicates['qid'].groupby(duplicates['commander'])
+g=group.count()
+g=g.reset_index()# change the index to column
+g.rename(columns={'country': 'has_country'}, inplace=True)
+gg=g[g['qid']==2]
+gg=gg['commander']
+gg=list(gg)
+
+name_with_2qids=war_commander_infobox[war_commander_infobox['commander'].isin(gg)]
+name_with_2qids.to_csv(main_path+"tem/name_with_2qids.csv",index=False)
+#
+war_commander_infobox=war_commander_infobox.fillna(0)
+war_commander_infobox['commander_qid']=war_commander_infobox.apply(lambda x: function0(x.commander_qid,x.qid), axis=1)
+##
 
 
 
 
+##collect those commanders that are not matched
+commander_noqid=war_commander_infobox[war_commander_infobox['commander_qid']==0]
+commander_noqid=commander_noqid.loc[:,['commander']]
+commander_noqid.drop_duplicates(inplace=True)
+commander_noqid=commander_noqid.fillna(0)
+commander_noqid=commander_noqid[commander_noqid['commander']!=0]
+commander_noqid.to_csv(main_path+"tem/commanderlist_noqid.csv",index=False)
+##
+war_commander_infobox=war_commander_infobox.loc[:,['wid','war_qid','commander','commander_qid','commander_of_1','commander_of_2','commander_of_3','commander_of_4','side','dead_in_battle','condition_1','condition_2','condition_3']]
+war_commander_infobox=war_commander_infobox.replace('0',np.nan)
+war_commander_infobox=war_commander_infobox.replace(0,np.nan)
+war_commander_infobox.to_csv(commanders_path,index=False)
+####
+#######################################################################################
 """
 ###################time information##########################
 """
-info_time=writer.loc[:,['wid','title','tmp']]
+writer_time=pd.read_csv(main_path+'input/infobox_new.csv') 
+
+
+#######drop those that are not wars at all
+writer_time=writer_time[writer_time['wid']!=288520]
+writer_time=writer_time[writer_time['wid']!=160665]
+writer_time=writer_time[writer_time['wid']!=160664]
+writer_time=writer_time[writer_time['wid']!=560948]
+writer_time=writer_time[writer_time['wid']!=2150520]
+writer_time=writer_time[writer_time['wid']!=16315254]
+writer_time=writer_time[writer_time['wid']!=207630]
+writer_time=writer_time[writer_time['wid']!=205658]
+writer_time=writer_time[writer_time['wid']!=338949]
+writer_time=writer_time[writer_time['wid']!=896446]
+writer_time=writer_time[writer_time['wid']!=10343280]##this one is quicky. The page of it was delete in January 2019 and the log shows that the arguers believe this one is only a legendary war without 
+                                      ## any warrant. So I delete it from the dataset
+writer_time=writer_time[writer_time['wid']!=44131689]
+writer_time=writer_time[writer_time['wid']!=17677848]
+writer_time=writer_time[writer_time['wid']!=4902286] 
+info_time=writer_time.loc[:,['wid','title','tmp']]
 info_time['time']=info_time['tmp'].str.extract(r'(.*)',expand=False)
 
 ####Clean
+info_time['time']=info_time['time'].str.replace(r'\{\{Pufc\|1=\|date=.*?\}\}','')
+info_time['time']=info_time['time'].str.replace(r'\{\{pufc\|1=\|date=.*?\}\}','')
+info_time['time']=info_time['time'].str.replace(r'\{\{Dubious\|date=.*?\}\}','')
+info_time['time']=info_time['time'].str.replace(r'\{\{dubious\|date=.*?\}\}','')
+info_time['time']=info_time['time'].str.replace(r'\{\{page needed\|date=.*?\}\}','')
+info_time['time']=info_time['time'].str.replace(r'\{\{deadlink *\|date=.*?\}\}','')
+
 info_time['time']=info_time['time'].str.replace(r'<ref[^/]*?>.*?<\/ref>','')
 info_time['time']=info_time['time'].str.replace(r'<ref.*?>','')
 info_time['time']=info_time['time'].str.replace(r'<sup>.*?<\/sup>','')
@@ -1391,6 +1970,9 @@ info_time['time']=info_time['time'].str.replace(r'\[\[treaty of peace and friend
 info_time['time']=info_time['time'].str.replace(r'in the 8th year of \[\[ashoka\]\]\'s coronation of 269 bce\.','')
 info_time['time']=info_time['time'].str.replace(r'\/possibly 629','')
 info_time['time']=info_time['time'].str.replace(r'\, possibly 1486','')
+info_time['time']=info_time['time'].str.replace(r'\{\{Deletable image-caption\|.*?\}\}','')
+
+
 ####
 #######positioning
 info_time['time']=info_time['time'].str.extract(r'\| *date *=(.*)',expand=False)
@@ -1564,6 +2146,7 @@ smaller_100=info_time_merge1[(info_time_merge1['year_y']==0)|(info_time_merge1['
 
 smaller_100['time']=smaller_100['time'].str.replace(r'–','– ')
 smaller_100['time']=smaller_100['time']+' '
+smaller_100['time']=' '+smaller_100['time']
 smaller_100['year2']=smaller_100['time'].str.findall('[= ;-<]([3456789][1234567890][ –&-<](bc)?)')
 y=smaller_100.set_index('wid').year2.apply(pd.Series).stack().reset_index(level=0).rename(columns={0:'year2'})
 y=y.set_index('wid').year2.apply(pd.Series).stack().reset_index(level=0).rename(columns={0:'year2'})
@@ -1605,6 +2188,8 @@ below = info_time_merge2.loc[334:]
 info_time_merge2 = above.append(insertRow,ignore_index=True).append(below,ignore_index=True)
 info_time_merge2.loc[info_time_merge2.wid==58276855,'year2_y']='15'
 info_time_merge2.loc[info_time_merge2.wid==58276973,'year2_y']='16'
+info_time_merge2.loc[info_time_merge2.wid==4541066,'year2_y']='36 bc'
+
 
 info_time_merge2.drop(['year_x','year_y','year2_x','title','tmp','time'],axis=1, inplace=True)
 info_time_merge2['year2_y']=info_time_merge2['year2_y'].str.replace(r'–','')
@@ -1754,7 +2339,14 @@ info_time_final=info_time_final.loc[:,['wid','title','start_year','end_year','pr
 info_time_final['start_year']=info_time_final['start_year'].replace(0,np.nan)
 info_time_final['end_year']=info_time_final['end_year'].replace(0,np.nan)
 
+info_time.loc[info_time.wid==4548076,'start_year']=-119
+info_time.loc[info_time.wid==4548076,'end_year']=-119
+info_time.loc[info_time.wid==3167454,'start_year']=-30
+info_time.loc[info_time.wid==50818289,'end_year']=-63
+
+
 info_time_final.to_csv(time_path,index=False)
+
 
 """
 ###################################### location information #########################################
