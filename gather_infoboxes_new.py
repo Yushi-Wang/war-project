@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jan 18 11:47:17 2019
-
+This is the code file for dumping wikipedia articles and then extracting infoboxes from wikipedia
 @author: leo
 """
 

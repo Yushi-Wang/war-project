@@ -21,6 +21,7 @@ pariticipants_path=main_path+'output/wikiWAR_participant_infobox.csv'
 commanders_path=main_path+'output/wikiWAR_commander_infobox.csv'
 time_path=main_path+'output/wikiWAR_info_time.csv'
 location_path=main_path+'output/wikiWAR_location_infobox.csv'
+partof_infobox_path=main_path+'output/partof_infobox.csv'
 partof_path=main_path+'output/wikiWAR_partof_infobox_iteration.csv'
 qid_subject_path='D:/learning/Arash/war_participants/Fabian_06292019_WAR/Data/A1_00_qidSubject.dta'
 try:
@@ -44,12 +45,13 @@ writer=writer[writer['wid']!=207630]
 writer=writer[writer['wid']!=205658]
 writer=writer[writer['wid']!=338949]
 writer=writer[writer['wid']!=896446]
-writer=writer[writer['wid']!=10343280]##this one is quicky. The page of it was delete in January 2019 and the log shows that the arguers believe this one is only a legendary war without 
+writer=writer[writer['wid']!=10343280]##this one is tricky. The page of it was delete in January 2019 and the log shows that the arguers believe this one is only a legendary war without 
                                       ## any warrant. So I delete it from the dataset
 writer=writer[writer['wid']!=44131689]
 writer=writer[writer['wid']!=17677848]
 writer=writer[writer['wid']!=4902286] 
-                   
+
+writer=writer[writer['wid']!=826616]                    
 #######
 def function0(a,b):
     if a!=0:
@@ -2343,7 +2345,9 @@ info_time.loc[info_time.wid==4548076,'start_year']=-119
 info_time.loc[info_time.wid==4548076,'end_year']=-119
 info_time.loc[info_time.wid==3167454,'start_year']=-30
 info_time.loc[info_time.wid==50818289,'end_year']=-63
-
+info_time.loc[info_time.wid==2800682,'start_year']=1536
+info_time.loc[info_time.wid==2800682,'end_year']=1883
+info_time.loc[info_time.wid==1536983,'end_year']=1739
 
 info_time_final.to_csv(time_path,index=False)
 
@@ -2710,7 +2714,7 @@ partof_infobox['partof']=partof_infobox['partof'].str.replace(r'\&nbsp\;',' ')
 
 partof_infobox['partof']=partof_infobox['partof'].fillna(0)
 partof_infobox=partof_infobox[partof_infobox['partof']!=0]
-
+partof_infobox.to_csv(partof_infobox_path,index=False)
 ########################### get the structure that Arash suggested ###########################
 wid_to_qid['qid']=wid_to_qid['qid'].astype(int)
 wid_to_qid['wid']=wid_to_qid['wid'].astype(int)
